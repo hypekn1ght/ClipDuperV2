@@ -2,13 +2,13 @@ import { z } from "zod";
 import {
   AbsoluteFill,
   Sequence,
-  spring,
-  useCurrentFrame,
-  useVideoConfig,
+  // spring,
+  // useCurrentFrame,
+  // useVideoConfig,
   OffthreadVideo,
 } from "remotion";
-import { loadFont, fontFamily } from "@remotion/google-fonts/Inter";
-import React, { useMemo } from "react";
+import { loadFont } from "@remotion/google-fonts/Inter";
+import React from "react";
 import { CompositionProps } from "../../../types/constants";
 
 loadFont("normal", {
@@ -20,10 +20,10 @@ const container: React.CSSProperties = {
   backgroundColor: "white",
 };
 
-const logo: React.CSSProperties = {
-  justifyContent: "center",
-  alignItems: "center",
-};
+// const logo: React.CSSProperties = {
+//   justifyContent: "center",
+//   alignItems: "center",
+// };
 
 // Style for the video container to apply rotation
 const videoContainerStyle: React.CSSProperties = {
@@ -35,25 +35,25 @@ const videoContainerStyle: React.CSSProperties = {
 };
 
 export const Main = ({ title, videoSrc, rotation = 5, scale = 0.95 }: z.infer<typeof CompositionProps>) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  // const frame = useCurrentFrame();
+  // const { fps } = useVideoConfig();
 
-  const transitionStart = 2 * fps;
-  const transitionDuration = 1 * fps;
+  // const transitionStart = 2 * fps;
+  // const transitionDuration = 1 * fps;
 
-  const logoOut = spring({
-    fps,
-    frame,
-    config: {
-      damping: 200,
-    },
-    durationInFrames: transitionDuration,
-    delay: transitionStart,
-  });
+  // const logoOut = spring({
+  //   fps,
+  //   frame,
+  //   config: {
+  //     damping: 200,
+  //   },
+  //   durationInFrames: transitionDuration,
+  //   delay: transitionStart,
+  // });
 
-  const titleStyle: React.CSSProperties = useMemo(() => {
-    return { fontFamily, fontSize: 70 };
-  }, []);
+  // const titleStyle: React.CSSProperties = useMemo(() => {
+  //   return { fontFamily, fontSize: 70 };
+  // }, []);
 
   return (
     <AbsoluteFill style={container}>
