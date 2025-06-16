@@ -34,7 +34,7 @@ const videoContainerStyle: React.CSSProperties = {
   alignItems: "center",
 };
 
-export const Main = ({ title, videoSrc, rotation = 5, scale = 0.95 }: z.infer<typeof CompositionProps>) => {
+export const Main = ({ videoSrc, rotation = 5, scale = 0.95 }: z.infer<typeof CompositionProps>) => {
   // const frame = useCurrentFrame();
   // const { fps } = useVideoConfig();
 
@@ -59,7 +59,7 @@ export const Main = ({ title, videoSrc, rotation = 5, scale = 0.95 }: z.infer<ty
     <AbsoluteFill style={container}>
       
       {videoSrc && (
-        <Sequence from={0} durationInFrames={Infinity}>
+        <Sequence>
           <AbsoluteFill style={videoContainerStyle}>
             <OffthreadVideo
               src={videoSrc}

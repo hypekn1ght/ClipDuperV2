@@ -3,11 +3,18 @@ import { IncomingForm, Fields, Files, File as FormidableFile } from 'formidable'
 import { S3Client, PutObjectCommand, ObjectCannedACL } from '@aws-sdk/client-s3';
 import fs from 'fs';
 
+interface FileDetails {
+  originalFilename: string | null;
+  mimetype: string | null;
+  size: number;
+  s3Key: string;
+}
+
 interface UploadResponse {
   message?: string;
   error?: string;
   videoUrl?: string; // Added for S3 URL
-  fileDetails?: any; // To send back some info about the parsed file for testing
+  fileDetails?: FileDetails;
 }
 
 // Disable Next.js body parser for this route so formidable can handle the stream
@@ -84,9 +91,10 @@ export default async function handler(
               s3Key: s3Key,
             },
           });
-        } catch (s3Error: any) {
+        } catch (s3Error: unknown) {
           console.error('Error uploading to S3:', s3Error);
-          res.status(500).json({ error: 'Failed to upload file to S3.', message: s3Error.message });
+          const message = s3Error instanceof Error ? s3Error.message : String(s3Error);
+          res.status(500).json({ error: 'Failed to upload file to S3.', message });
         }
       } else {
         console.log('No file found in the upload.');

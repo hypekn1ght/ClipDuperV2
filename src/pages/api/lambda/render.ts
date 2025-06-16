@@ -42,6 +42,7 @@ const render = executeApi<RenderMediaOnLambdaOutput, typeof RenderRequest>(
     // if the runtime accepts these parameters.
     const { width, height, durationInFrames, fps, ...restInputProps } = body.inputProps;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const renderOptions: any = {
       codec: "h264",
       functionName: speculateFunctionName({
