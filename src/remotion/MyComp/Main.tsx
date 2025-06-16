@@ -5,12 +5,10 @@ import {
   spring,
   useCurrentFrame,
   useVideoConfig,
+  OffthreadVideo,
 } from "remotion";
-import { NextLogo } from "./NextLogo";
 import { loadFont, fontFamily } from "@remotion/google-fonts/Inter";
 import React, { useMemo } from "react";
-import { Rings } from "./Rings";
-import { TextFade } from "./TextFade";
 import { CompositionProps } from "../../../types/constants";
 
 loadFont("normal", {
@@ -27,7 +25,16 @@ const logo: React.CSSProperties = {
   alignItems: "center",
 };
 
-export const Main = ({ title }: z.infer<typeof CompositionProps>) => {
+// Style for the video container to apply rotation
+const videoContainerStyle: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  display: "flex", // Using flex to center the video if its dimensions are smaller than the container
+  justifyContent: "center",
+  alignItems: "center",
+};
+
+export const Main = ({ title, videoSrc, rotation = 5, scale = 0.95 }: z.infer<typeof CompositionProps>) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -50,17 +57,23 @@ export const Main = ({ title }: z.infer<typeof CompositionProps>) => {
 
   return (
     <AbsoluteFill style={container}>
-      <Sequence durationInFrames={transitionStart + transitionDuration}>
-        <Rings outProgress={logoOut}></Rings>
-        <AbsoluteFill style={logo}>
-          <NextLogo outProgress={logoOut}></NextLogo>
-        </AbsoluteFill>
-      </Sequence>
-      <Sequence from={transitionStart + transitionDuration / 2}>
-        <TextFade>
-          <h1 style={titleStyle}>{title}</h1>
-        </TextFade>
-      </Sequence>
+      
+      {videoSrc && (
+        <Sequence from={0} durationInFrames={Infinity}>
+          <AbsoluteFill style={videoContainerStyle}>
+            <OffthreadVideo
+              src={videoSrc}
+              style={{
+                transform: `rotate(${rotation}deg) scale(${scale})`,
+                maxWidth: "100%",
+                maxHeight: "100%",
+                filter: 'saturate(1.05)',
+              }}
+              playbackRate={0.95}
+            />
+          </AbsoluteFill>
+        </Sequence>
+      )}
     </AbsoluteFill>
   );
 };

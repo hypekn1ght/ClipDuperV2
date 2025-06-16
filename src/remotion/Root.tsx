@@ -3,7 +3,6 @@ import { Main } from "./MyComp/Main";
 import {
   COMP_NAME,
   defaultMyCompProps,
-  DURATION_IN_FRAMES,
   VIDEO_FPS,
   VIDEO_HEIGHT,
   VIDEO_WIDTH,
@@ -16,10 +15,10 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id={COMP_NAME}
         component={Main}
-        durationInFrames={DURATION_IN_FRAMES}
+        durationInFrames={18000} // Default to 10 minutes at 30fps, actual render length controlled by frameRange
         fps={VIDEO_FPS}
-        width={VIDEO_WIDTH}
-        height={VIDEO_HEIGHT}
+        width={VIDEO_WIDTH} // Default width, overridden by forceWidth in Lambda
+        height={VIDEO_HEIGHT} // Default height, overridden by forceHeight in Lambda
         defaultProps={defaultMyCompProps}
       />
       <Composition

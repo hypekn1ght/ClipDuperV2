@@ -35,13 +35,81 @@ const player: React.CSSProperties = {
 };
 
 const Home: NextPage = () => {
-  const [text, setText] = useState<string>(defaultMyCompProps.title);
+  const [title, setTitle] = useState<string>(defaultMyCompProps.title);
+  const [localPlayerVideoUrl, setLocalPlayerVideoUrl] = useState<string | null>(null);
+  const [videoPlayerWidth, setVideoPlayerWidth] = useState<number>(VIDEO_WIDTH);
+  const [videoPlayerHeight, setVideoPlayerHeight] = useState<number>(VIDEO_HEIGHT);
+  const [videoPlayerDurationInFrames, setVideoPlayerDurationInFrames] = useState<number>(DURATION_IN_FRAMES);
+  const [videoPlayerFps, setVideoPlayerFps] = useState<number>(VIDEO_FPS);
 
   const inputProps: z.infer<typeof CompositionProps> = useMemo(() => {
+    // Start with all defaults, then override specific ones for the player or from state
     return {
-      title: text,
+      ...defaultMyCompProps,
+      title: title,
+      videoSrc: localPlayerVideoUrl ?? defaultMyCompProps.videoSrc,
+      width: videoPlayerWidth,
+      height: videoPlayerHeight,
+      durationInFrames: videoPlayerDurationInFrames,
+      fps: videoPlayerFps,
     };
-  }, [text]);
+  }, [title, localPlayerVideoUrl]);
+
+  const handleLocalVideoSelectedForPlayer = (file: File | null) => {
+    if (localPlayerVideoUrl) {
+      URL.revokeObjectURL(localPlayerVideoUrl);
+    }
+
+    if (file) {
+      const newUrl = URL.createObjectURL(file);
+      setLocalPlayerVideoUrl(newUrl);
+
+      // Get video dimensions
+      const videoElement = document.createElement('video');
+      videoElement.src = newUrl;
+      videoElement.onloadedmetadata = () => {
+        console.log('[index.tsx] onloadedmetadata: Video metadata loaded.');
+        console.log('[index.tsx] Original video dimensions:', videoElement.videoWidth, 'x', videoElement.videoHeight);
+        console.log('[index.tsx] Original video duration (seconds):', videoElement.duration);
+        console.log('[index.tsx] Using default VIDEO_FPS for calculations:', VIDEO_FPS);
+        setVideoPlayerWidth(videoElement.videoWidth);
+        setVideoPlayerHeight(videoElement.videoHeight);
+        // For FPS, we'll use the default VIDEO_FPS for now as browser doesn't easily provide it.
+        // Duration in frames will be video duration in seconds * target FPS.
+        const durationInSeconds = videoElement.duration;
+        if (isFinite(durationInSeconds)) {
+          setVideoPlayerDurationInFrames(Math.round(durationInSeconds * VIDEO_FPS)); 
+        } else {
+          // Fallback if duration is not finite (e.g. live stream, though not expected here)
+          setVideoPlayerDurationInFrames(DURATION_IN_FRAMES); 
+        }
+        setVideoPlayerFps(VIDEO_FPS); // Using default FPS
+        console.log('[index.tsx] State updated to: width=', videoElement.videoWidth, 'height=', videoElement.videoHeight, 'durationInFrames=', Math.round(videoElement.duration * VIDEO_FPS));
+        // No need to revoke newUrl here as it's used by the player
+      };
+      videoElement.onerror = (error) => {
+        console.error("[index.tsx] onerror: Error loading video metadata:", error);
+        // Also log the videoElement.error if available
+        if (videoElement.error) {
+          console.error("[index.tsx] videoElement.error details:", videoElement.error);
+        }
+        console.error("Error loading video metadata");
+        // Reset to default dimensions or handle error appropriately
+        setVideoPlayerWidth(VIDEO_WIDTH);
+        setVideoPlayerHeight(VIDEO_HEIGHT);
+        setVideoPlayerDurationInFrames(DURATION_IN_FRAMES); // Reset duration
+        setVideoPlayerFps(VIDEO_FPS); // Reset FPS
+        setLocalPlayerVideoUrl(null); // Clear the video src if metadata fails
+        URL.revokeObjectURL(newUrl); // Revoke if there was an error
+      };
+    } else {
+      setLocalPlayerVideoUrl(null);
+      setVideoPlayerWidth(VIDEO_WIDTH); // Reset to default if file is cleared
+      setVideoPlayerHeight(VIDEO_HEIGHT);
+      setVideoPlayerDurationInFrames(DURATION_IN_FRAMES); // Reset duration
+      setVideoPlayerFps(VIDEO_FPS); // Reset FPS
+    }
+  };
 
   return (
     <div>
@@ -59,27 +127,31 @@ const Home: NextPage = () => {
           <Player
             component={Main}
             inputProps={inputProps}
-            durationInFrames={DURATION_IN_FRAMES}
-            fps={VIDEO_FPS}
-            compositionHeight={VIDEO_HEIGHT}
-            compositionWidth={VIDEO_WIDTH}
+            durationInFrames={videoPlayerDurationInFrames}
+            fps={videoPlayerFps}
+            compositionHeight={videoPlayerHeight}
+            compositionWidth={videoPlayerWidth}
             style={player}
             controls
             autoPlay
             loop
           />
-        </div>
+        </div> {/* Closes div.cinematics */}
         <RenderControls
-          text={text}
-          setText={setText}
+          // Pass title and setTitle to RenderControls if it needs to modify the title
+          // If RenderControls only reads title from inputProps, these specific props might not be needed here
+          // For now, assuming RenderControls might have an input field for the title: 
+          text={title} // Assuming RenderControls uses 'text' internally for its input field
+          setText={setTitle} // Assuming RenderControls uses 'setText' internally
           inputProps={inputProps}
-        ></RenderControls>
+          onLocalVideoSelectedForPlayer={(file) => handleLocalVideoSelectedForPlayer(file as File | null)} // Pass the callback, ensure type compatibility
+        />
         <Spacing></Spacing>
         <Spacing></Spacing>
         <Spacing></Spacing>
         <Spacing></Spacing>
         <Tips></Tips>
-      </div>
+      </div> {/* Closes div style={container} */}
     </div>
   );
 };
