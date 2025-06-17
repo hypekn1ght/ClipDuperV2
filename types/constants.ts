@@ -10,6 +10,8 @@ export const CompositionProps = z.object({
   height: z.number().optional(),
   durationInFrames: z.number().optional(),
   fps: z.number().optional(),
+  s3Bucket: z.string().optional(),
+  s3Key: z.string().optional(),
 });
 
 export const defaultMyCompProps: z.infer<typeof CompositionProps> = {

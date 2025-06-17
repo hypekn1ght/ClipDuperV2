@@ -6,6 +6,23 @@ import {
 import { DISK, RAM, REGION, TIMEOUT } from "../../../../config.mjs";
 import { executeApi } from "../../../helpers/api-response";
 import { RenderRequest } from "../../../../types/schema";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+
+
+// Ensure necessary S3 env vars are present for deletion capability
+if (!process.env.AWS_S3_UPLOAD_REGION) {
+  console.warn("[render.ts] AWS_S3_UPLOAD_REGION environment variable is not set for the render lambda. S3 deletion might fail if the region is required and not correctly inferred. Will attempt to use Lambda's region as fallback.");
+}
+
+const s3Client = new S3Client({
+  // Prefer AWS_S3_UPLOAD_REGION for the bucket operations, fallback to REGION (Lambda's execution region)
+  region: process.env.AWS_S3_UPLOAD_REGION || (REGION as AwsRegion),
+  credentials: {
+    // These credentials are also used by Remotion Lambda and checked earlier in the code
+    accessKeyId: process.env.REMOTION_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.REMOTION_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
 
 const render = executeApi<RenderMediaOnLambdaOutput, typeof RenderRequest>(
   RenderRequest,
@@ -85,6 +102,29 @@ const render = executeApi<RenderMediaOnLambdaOutput, typeof RenderRequest>(
     // }
 
     const result = await renderMediaOnLambda(renderOptions);
+
+    // [DIAGNOSTIC] Temporarily disabled S3 deletion to debug 'NoSuchKey' error.
+    // const { s3Bucket, s3Key, videoSrc } = body.inputProps;
+
+    // if (s3Bucket && s3Key) {
+    //   console.log(`[render.ts] Attempting to delete s3://${s3Bucket}/${s3Key} after successful render.`);
+    //   try {
+    //     const deleteParams = {
+    //       Bucket: s3Bucket,
+    //       Key: s3Key,
+    //     };
+    //     await s3Client.send(new DeleteObjectCommand(deleteParams));
+    //     console.log(`[render.ts] Successfully deleted s3://${s3Bucket}/${s3Key}.`);
+    //   } catch (deleteError) {
+    //     console.error(`[render.ts] Failed to delete s3://${s3Bucket}/${s3Key}:`, deleteError);
+    //   }
+    // } else {
+    //   if (videoSrc) {
+    //     console.log(`[render.ts] s3Bucket or s3Key not explicitly provided. Cannot delete. videoSrc: ${videoSrc}`);
+    //   } else {
+    //     console.log("[render.ts] s3Bucket, s3Key, or videoSrc not found. Skipping deletion.");
+    //   }
+    // }
 
     return result;
   },

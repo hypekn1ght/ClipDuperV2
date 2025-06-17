@@ -56,9 +56,8 @@ export const Main = ({ videoSrc, rotation = 5, scale = 0.95 }: z.infer<typeof Co
   // }, []);
 
   return (
-    <AbsoluteFill style={container}>
       
-      {videoSrc && (
+      videoSrc && (
         <Sequence>
           <AbsoluteFill style={videoContainerStyle}>
             <OffthreadVideo
@@ -73,7 +72,6 @@ export const Main = ({ videoSrc, rotation = 5, scale = 0.95 }: z.infer<typeof Co
             />
           </AbsoluteFill>
         </Sequence>
-      )}
-    </AbsoluteFill>
+      )
   );
 };

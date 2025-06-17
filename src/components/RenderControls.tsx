@@ -21,73 +21,75 @@ export const RenderControls: React.FC<{
   const [videoSrc, setVideoSrc] = React.useState<string | undefined>(
     defaultMyCompProps.videoSrc,
   );
+  const [s3KeyForDeletion, setS3KeyForDeletion] = React.useState<string | undefined>(undefined);
+  const [s3BucketForDeletion, setS3BucketForDeletion] = React.useState<string | undefined>(undefined);
 
   // Combine text and videoSrc for the actual inputProps to Remotion
   const actualInputProps: z.infer<typeof CompositionProps> = React.useMemo(() => ({
     ...currentInputPropsFromPage,
     title: text, // Ensure title is updated from the text state
     videoSrc,
-  }), [currentInputPropsFromPage, text, videoSrc]);
+    s3Key: s3KeyForDeletion,
+    s3Bucket: s3BucketForDeletion,
+  }), [currentInputPropsFromPage, text, videoSrc, s3KeyForDeletion, s3BucketForDeletion]);
 
 
   const { renderMedia: originalRenderMedia, state, undo } = useRendering(COMP_NAME, actualInputProps);
   const [isReadyToRenderAfterUpload, setIsReadyToRenderAfterUpload] = React.useState(false);
+  const [uploadStatus, setUploadStatus] = React.useState<'idle' | 'uploading' | 'error' | 'success'>('idle');
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const handleRenderWithUpload = async () => {
-    console.log('[RenderControls] handleRenderWithUpload called. Video file:', videoFile);
-    if (videoFile) {
-      const formData = new FormData();
-      formData.append('video', videoFile);
-
-      try {
-        // Show some indication of upload
-        // This is a simplified state update; you might want a more robust state for 'uploading'
-        // For now, we rely on the 'invoking' state of useRendering for general loading indication.
-        console.log('[RenderControls] Attempting to fetch /api/upload with FormData.');
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const result = await response.json(); // Call .json() only ONCE
-        console.log('[RenderControls] Received response from /api/upload:', result);
-
-        if (!response.ok) {
-          // If response was not ok, 'result' now holds the error payload from the server
-          // The server sends { error: '...', message: '...' } for errors.
-          throw new Error(result.message || result.error || 'Upload failed');
-        }
-
-        // If response.ok, 'result' holds the success payload.
-        // Currently, it's { message: '...', fileDetails: {...} }
-        // We expect it to eventually contain result.videoUrl
-        if (result.videoUrl) {
-          setVideoSrc(result.videoUrl);
-          setIsReadyToRenderAfterUpload(true); // Trigger effect to render
-          return; // Upload successful, rendering will be handled by useEffect
-        } else {
-          // For now, since S3 upload isn't implemented, videoUrl won't be there.
-          // We can consider the parsing successful if we reach here and response was ok.
-          console.log('File parsed on server, but no S3 videoUrl yet:', result.fileDetails);
-          // If you want to proceed to render with a local blob URL for testing *before* S3 is ready,
-          // you could do that here, but the main goal is to get the S3 URL.
-          // For now, let's assume we need videoUrl to proceed to Remotion rendering.
-          // throw new Error('Upload successful, but no video URL returned from the server.');
-          // TEMPORARY: To acknowledge successful parsing without S3, let's not throw an error here yet.
-          // We will handle the actual rendering trigger once S3 URL is available.
-          alert(`File parsed by server: ${result.message}. S3 upload next.`);
-          return; // Stop here for now, as no S3 URL to render with.
-        }
-      } catch (error) {
-        console.error('Upload error:', error);
-        // Update state to show an error message to the user
-        // This part needs to integrate with the `state` from `useRendering` or a new error state.
-        alert(`Error uploading video: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-    } else {
-      // If no video file, just proceed with original render logic (e.g., only text)
+    if (!videoFile) {
+      // If no video file is selected, just proceed with the original render logic.
       originalRenderMedia();
+      return;
+    }
+
+    setUploadStatus('uploading');
+    setUploadError(null);
+
+    try {
+      // 1. Get pre-signed URL from our API
+      const presignedUrlResponse = await fetch('/api/s3/get-presigned-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: videoFile.name,
+          fileType: videoFile.type,
+          videoWidth: currentInputPropsFromPage.width,
+          videoHeight: currentInputPropsFromPage.height,
+        }),
+      });
+
+      const { uploadUrl, finalUrl, key, bucketName, error: presignedError, message: presignedMessage } = await presignedUrlResponse.json();
+
+      if (!presignedUrlResponse.ok) {
+        throw new Error(presignedMessage || presignedError || 'Failed to get pre-signed URL.');
+      }
+
+      // 2. Upload the file directly to S3 using the pre-signed URL
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: videoFile,
+        headers: { 'Content-Type': videoFile.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('S3 Upload failed. Check browser console for details.');
+      }
+
+      setUploadStatus('success');
+
+      // 3. Set the final S3 URL, store key/bucket for deletion, and trigger Remotion render
+      setVideoSrc(finalUrl);
+      setS3KeyForDeletion(key);
+      setS3BucketForDeletion(bucketName);
+      setIsReadyToRenderAfterUpload(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setUploadError(message);
+      setUploadStatus('error');
     }
   };
 
@@ -95,70 +97,52 @@ export const RenderControls: React.FC<{
     if (isReadyToRenderAfterUpload && state.status !== 'invoking' && state.status !== 'rendering') {
       originalRenderMedia();
       setIsReadyToRenderAfterUpload(false); // Reset trigger
+      setUploadStatus('idle'); // Reset upload status for next time
     }
   }, [isReadyToRenderAfterUpload, originalRenderMedia, state.status]);
 
   return (
-    <InputContainer>
-      {state.status === "init" ||
-      state.status === "invoking" ||
-      state.status === "error" ? (
-        <>
-          <Input
-            disabled={state.status === "invoking"}
-            setText={setText}
-            text={text}
-          ></Input>
-          <Spacing />
-          <div>
-            <label htmlFor="video-upload" style={{ display: "block", marginBottom: "0.5rem" }}>Upload Video (optional):</label>
-            <input
-              type="file"
-              id="video-upload"
-              accept="video/*"
-              disabled={state.status === "invoking"}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setVideoFile(file);
-                  const localUrl = URL.createObjectURL(file);
-                  setVideoSrc(localUrl); // Set for internal use by RenderControls for eventual S3 upload
-                  onLocalVideoSelectedForPlayer(file); // Pass File object to parent for local player
-                } else {
-                  setVideoFile(null);
-                  setVideoSrc(undefined);
-                  onLocalVideoSelectedForPlayer(null); // Notify parent that file was cleared
-                }
-              }}
-              style={{ width: "100%", padding: "0.5rem", border: "1px solid #ccc", borderRadius: "4px" }}
-            />
-          </div>
-          <Spacing></Spacing>
-          <AlignEnd>
-            <Button
-              disabled={state.status === "invoking"}
-              loading={state.status === "invoking"}
-              onClick={handleRenderWithUpload}
-            >
-              Render video
-            </Button>
-          </AlignEnd>
-          {state.status === "error" ? (
-            <ErrorComp message={state.error.message}></ErrorComp>
-          ) : null}
-        </>
-      ) : null}
-      {state.status === "rendering" || state.status === "done" ? (
-        <>
-          <ProgressBar
-            progress={state.status === "rendering" ? state.progress : 1}
-          />
-          <Spacing></Spacing>
-          <AlignEnd>
-            <DownloadButton undo={undo} state={state}></DownloadButton>
-          </AlignEnd>
-        </>
-      ) : null}
-    </InputContainer>
+    <>
+      <InputContainer>
+        <Input
+          setText={setText}
+          text={text}
+          placeholder="Enter title here"
+        ></Input>
+      </InputContainer>
+      <Spacing />
+      <InputContainer>
+        <input
+          type="file"
+          accept="video/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            setVideoFile(file || null);
+            onLocalVideoSelectedForPlayer(file || null);
+          }}
+        />
+      </InputContainer>
+      <Spacing />
+      <AlignEnd>
+        <Button
+          disabled={state.status === 'invoking' || uploadStatus === 'uploading'}
+          loading={state.status === 'invoking' || uploadStatus === 'uploading'}
+          onClick={handleRenderWithUpload}
+        >
+          {uploadStatus === 'uploading' ? 'Uploading...' : 'Render video'}
+        </Button>
+      </AlignEnd>
+      <Spacing />
+
+      {/* Upload-specific error */}
+      {uploadStatus === 'error' && (
+        <ErrorComp message={uploadError || 'An unknown upload error occurred.'} />
+      )}
+
+      {/* Remotion rendering state */}
+      {state.status === 'error' && <ErrorComp message={state.error.message} />}
+      {state.status === 'rendering' && <ProgressBar progress={state.progress} />}
+      {state.status === 'done' && <DownloadButton state={state} undo={undo} />}
+    </>
   );
 };

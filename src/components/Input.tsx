@@ -16,7 +16,8 @@ export const Input: React.FC<{
   text: string;
   setText: React.Dispatch<React.SetStateAction<string>>;
   disabled?: boolean;
-}> = ({ text, setText, disabled }) => {
+  placeholder?: string;
+}> = ({ text, setText, disabled, placeholder }) => {
   const onChange: React.ChangeEventHandler<HTMLInputElement> = useCallback(
     (e) => {
       setText(e.currentTarget.value);
@@ -31,6 +32,7 @@ export const Input: React.FC<{
       style={textarea}
       value={text}
       onChange={onChange}
+      placeholder={placeholder}
     />
   );
 };

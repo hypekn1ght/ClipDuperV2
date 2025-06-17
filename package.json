@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@aws-sdk/client-s3": "^3.828.0",
+    "@aws-sdk/s3-request-presigner": "^3.830.0",
     "@remotion/bundler": "4.0.314",
     "@remotion/cli": "4.0.314",
     "@remotion/google-fonts": "4.0.314",
