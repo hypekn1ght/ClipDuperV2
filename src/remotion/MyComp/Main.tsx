@@ -16,9 +16,6 @@ loadFont("normal", {
   weights: ["400", "700"],
 });
 
-const container: React.CSSProperties = {
-  backgroundColor: "white",
-};
 
 // const logo: React.CSSProperties = {
 //   justifyContent: "center",

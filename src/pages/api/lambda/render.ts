@@ -6,7 +6,7 @@ import {
 import { DISK, RAM, REGION, TIMEOUT } from "../../../../config.mjs";
 import { executeApi } from "../../../helpers/api-response";
 import { RenderRequest } from "../../../../types/schema";
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
+// // import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 
 // Ensure necessary S3 env vars are present for deletion capability
