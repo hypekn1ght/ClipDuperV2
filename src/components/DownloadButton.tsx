@@ -1,4 +1,3 @@
-import Link from "next/link";
 import React from "react";
 import { State } from "../helpers/use-rendering";
 import { Button } from "./Button/Button";
@@ -6,10 +5,6 @@ import { Spacing } from "./Spacing";
 
 const light: React.CSSProperties = {
   opacity: 0.6,
-};
-
-const link: React.CSSProperties = {
-  textDecoration: "none",
 };
 
 const row: React.CSSProperties = {
@@ -32,7 +27,9 @@ const Megabytes: React.FC<{
 export const DownloadButton: React.FC<{
   state: State;
   undo: () => void;
-}> = ({ state, undo }) => {
+  s3Bucket?: string; // Add s3Bucket as an optional prop
+  s3Key?: string;    // Add s3Key as an optional prop
+}> = ({ state, undo, s3Bucket, s3Key }) => {
   if (state.status === "rendering") {
     return <Button disabled>Download video</Button>;
   }
@@ -41,19 +38,50 @@ export const DownloadButton: React.FC<{
     throw new Error("Download button should not be rendered when not done");
   }
 
+  const handleDownloadAndMaybeDelete = async () => {
+    // Programmatically trigger download
+    const link = document.createElement('a');
+    link.href = state.url;
+    link.setAttribute('download', state.url.substring(state.url.lastIndexOf('/') + 1) || 'rendered-video.mp4');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // If s3Bucket and s3Key are provided, attempt to delete the object from S3
+    if (s3Bucket && s3Key) {
+      console.log(`[DownloadButton] Initiating deletion of s3://${s3Bucket}/${s3Key}`);
+      try {
+        const response = await fetch('/api/s3/delete-object', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ s3Bucket, s3Key }),
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to delete S3 object.');
+        }
+        console.log(`[DownloadButton] Successfully requested deletion of s3://${s3Bucket}/${s3Key}`);
+      } catch (error) {
+        console.error('[DownloadButton] Error deleting S3 object:', error);
+        // Optionally, notify the user that deletion failed but download proceeded.
+      }
+    } else {
+      console.log('[DownloadButton] s3Bucket or s3Key not provided, skipping deletion.');
+    }
+  };
+
   return (
     <div style={row}>
       <Button secondary onClick={undo}>
         <UndoIcon></UndoIcon>
       </Button>
       <Spacing></Spacing>
-      <Link style={link} href={state.url}>
-        <Button>
-          Download video
-          <Spacing></Spacing>
-          <Megabytes sizeInBytes={state.size}></Megabytes>
-        </Button>
-      </Link>
+      {/* Replace Link with Button using onClick handler */}
+      <Button onClick={handleDownloadAndMaybeDelete}>
+        Download video
+        <Spacing></Spacing>
+        <Megabytes sizeInBytes={state.size}></Megabytes>
+      </Button>
     </div>
   );
 };

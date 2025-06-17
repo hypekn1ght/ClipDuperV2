@@ -14,15 +14,15 @@ if (!process.env.AWS_S3_UPLOAD_REGION) {
   console.warn("[render.ts] AWS_S3_UPLOAD_REGION environment variable is not set for the render lambda. S3 deletion might fail if the region is required and not correctly inferred. Will attempt to use Lambda's region as fallback.");
 }
 
-const s3Client = new S3Client({
-  // Prefer AWS_S3_UPLOAD_REGION for the bucket operations, fallback to REGION (Lambda's execution region)
-  region: process.env.AWS_S3_UPLOAD_REGION || (REGION as AwsRegion),
-  credentials: {
-    // These credentials are also used by Remotion Lambda and checked earlier in the code
-    accessKeyId: process.env.REMOTION_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.REMOTION_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+// const s3Client = new S3Client({
+//   // Prefer AWS_S3_UPLOAD_REGION for the bucket operations, fallback to REGION (Lambda's execution region)
+//   region: process.env.AWS_S3_UPLOAD_REGION || (REGION as AwsRegion),
+//   credentials: {
+//     // These credentials are also used by Remotion Lambda and checked earlier in the code
+//     accessKeyId: process.env.REMOTION_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID!,
+//     secretAccessKey: process.env.REMOTION_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY!,
+//   },
+// });
 
 const render = executeApi<RenderMediaOnLambdaOutput, typeof RenderRequest>(
   RenderRequest,

@@ -142,7 +142,7 @@ export const RenderControls: React.FC<{
       {/* Remotion rendering state */}
       {state.status === 'error' && <ErrorComp message={state.error.message} />}
       {state.status === 'rendering' && <ProgressBar progress={state.progress} />}
-      {state.status === 'done' && <DownloadButton state={state} undo={undo} />}
+      {state.status === 'done' && <DownloadButton state={state} undo={undo} s3Bucket={s3BucketForDeletion} s3Key={s3KeyForDeletion} />}
     </>
   );
 };
